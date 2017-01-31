@@ -1,0 +1,15 @@
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+.cache
+*.class
+*.log
+
+.lib/
+dist/*
+
+.idea/
+*.iws
+/out/
