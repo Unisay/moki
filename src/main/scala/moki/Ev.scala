@@ -6,6 +6,8 @@ trait Ev[P, C] {
 }
 
 object Ev {
+  def thunk[A](a: A): Unit => A = _ => a
+
   type Aux[P, C, O] = Ev[P, C] { type Out = O }
 
   implicit def one[A, B]: Ev.Aux[Unit => A, A => B, B] =
