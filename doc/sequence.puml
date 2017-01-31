@@ -1,0 +1,56 @@
+@startuml
+
+title Moki Client-Server protocol
+
+participant "System Under Test" as SUT
+participant "Moki Client" as C
+participant "Moki Server" as S
+
+autonumber "<b>0  "
+== Setup ==
+
+note right of C: Setup request matchers
+C -> S: <b>POST</b> /matchers
+activate S
+S --> C: 201 Created\nLocation: /matchers/1
+deactivate S
+C -> S: <b>POST</b> /matchers
+activate S
+S --> C: 201 Created\nLocation: /matchers/2
+deactivate S
+
+note right of C: Setup responses
+C -> S: <b>POST</b> /responses
+activate S
+S --> C: 201 Created\nLocation: /responses/1
+deactivate S
+C -> S: <b>POST</b> /responses
+activate S
+S --> C: 201 Created\nLocation: /responses/2
+deactivate S
+
+note right of C: Setup matcher-response mappings
+C -> S: <b>PUT</b> /responses/1/matchers/1
+activate S
+S --> C: 201 Created
+deactivate S
+C -> S: <b>PUT</b> /responses/2/matchers/1
+activate S
+S --> C: 201 Created
+deactivate S
+
+== Run tests ==
+
+alt Positive case
+SUT->S: any request
+S-->SUT: matched predefined response
+S->C: notification
+end
+
+alt Negative case
+SUT->S: any request
+S-->SUT: 404 Not Found
+S->C: notification
+end
+
+@enduml
