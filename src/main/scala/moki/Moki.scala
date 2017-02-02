@@ -11,22 +11,20 @@ import org.http4s.server.blaze._
 import scalaz.concurrent.Task
 import scalaz.syntax.functor._
 
-//  implicit val s: Strategy = Strategy.fromFixedDaemonPool(maxThreads = 10, threadName = "Moki strategy")
-
 object Moki {
-  def startServer: Task[MokiClient] =
+  def startServer(host: String, port: Int): Task[MokiClient] =
     for {
       queue  <- unboundedQueue[Task, Request]
-      server <- server(queue)
+      server <- server(queue, host, port)
     } yield new MokiClient(queue.dequeue, server)
 
-  private def server(queue: Queue[Task, Request]): Task[Server] = {
+  private def server(queue: Queue[Task, Request], host: String, port: Int): Task[Server] = {
     val httpService = HttpService {
       case request =>
         queue.enqueue1(request).as(Response(Status.Ok)) // TODO: consider offer?
     }
     BlazeBuilder
-      .bindHttp(port = 8080, host = "localhost")
+      .bindHttp(port, host)
       .mountService(httpService, "/")
       .start
   }
