@@ -1,25 +1,49 @@
 package moki
 
-import scalaz._
+import moki.Ev._
+
 import scalaz.Scalaz._
 import scalaz.concurrent.Task
 
-object TestServices {
+sealed trait TestService[F, S] {
+  def start: Task[S]
+  def stop: Task[Unit]
+  def apply(f: F)(implicit E: Ev[S, F]): Task[E.Out] =
+    for {
+      s <- start
+      out = ev(s, f)
+      _ <- stop
+    } yield out
 
-  type For[A, B] = Kleisli[Task, A, B]
+  protected def thunk[A](a: A): Unit => A = _ => a
+}
 
-  case class TestService[I, S](start: I For S, stop: S For Unit) {
-    def use[R](in: I, use: S => Task[R]): Task[R] = apply(Kleisli(use)).run(in)
-    def apply[R](use: S For R): I For R = start >=> (use |@| stop).tupled.map(_._1)
-    def >>[I2, S2](other: TestService[I2, S2]): TestService[(I, I2), (S, S2)] = // TODO: order
-      TestService[(I, I2), (S, S2)](zip(start, other.start), zip(stop, other.stop).void)
-    def zip[A, B, C, D](l: A For B, r: C For D): (A, C) For (B, D) =
-      (l.local[(A, C)](_._1) |@| r.local[(A, C)](_._2)).tupled
+trait TestService1[F, S] extends TestService[F, S] { s1 =>
+  def :>:[G, T](s2: TestService[G, T]): TestService2[G => F, Unit => (T, Unit => S)] =
+    new TestService2[G => F, Unit => (T, Unit => S)] {
+      def start: Task[Unit => (T, Unit => S)] = (s2.start |@| s1.start)((a, b) => thunk(a, thunk(b)))
+      def stop: Task[Unit] = s2.stop >>= thunk(s1.stop)
+    }
+}
+
+trait TestService2[F, S] extends TestService[F, S] { s1 =>
+  def :>:[G, T](s2: TestService[G, T]): TestService2[G => F, Unit => (T, S)] =
+    new TestService2[G => F, Unit => (T, S)] {
+      def start: Task[Unit => (T, S)] = (s2.start |@| s1.start)((a, b) => thunk((a, b)))
+      def stop: Task[Unit] = s2.stop >>= thunk(s1.stop)
+    }
+}
+
+object TestService {
+
+  def apply[S0](startTask: Task[S0], stopTask: Task[Unit]): TestService[S0, S0] = new TestService1[S0, S0] {
+    def start: Task[S0] = startTask
+    def stop: Task[Unit] = stopTask
   }
 
-  object TestService {
-    def apply[A, B](start: A => Task[B], stop: B => Task[Unit]): TestService[A, B] =
-      TestService(Kleisli(start), Kleisli(stop))
+  def returning[T]: TestService1[T, Unit] = new TestService1[T, Unit] {
+    def stop = Task.now(())
+    def start = ???
   }
 }
 

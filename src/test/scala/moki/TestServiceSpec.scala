@@ -1,31 +1,44 @@
 package moki
 
-import scalaz.concurrent.Task
-import moki.TestServices._
-import org.scalatest.FlatSpec
-import shapeless._
+import moki.TestService.returning
+import org.scalatest.{FlatSpec, MustMatchers}
+import moki.Ev._
 
-class TestServiceSpec extends FlatSpec {
+import scalaz.concurrent.Task
+
+class TestServiceSpec extends FlatSpec with MustMatchers {
 
   behavior of "TestService"
 
-  def createTestService[N](name: String) = TestService(
-    start = (i: N) => Task.delay { println(s"Starting $name: $i"); i.toString },
-    stop  = (s: String) => Task.delay { println(s"Stopping $name: $s") })
+  trait Db
+  object Db extends Db
+  trait Http
+  object Http extends Http
+  trait Email
+  object Email extends Email
 
-  val foo: TestService[Int, String] = createTestService("Foo")
-  val bar: TestService[Byte, String] = createTestService("Bar")
-  val baz: TestService[Long, String] = createTestService("Baz")
+  def createTestService[S](name: String, state: S) = TestService(
+    startTask = Task.delay { println(s"Starting $name with state = $state"); state },
+    stopTask  = Task.delay { println(s"Stopping $name") })
 
-  val services: TestService[Int :: Byte :: HNil, String :: String :: HNil] = foo :> bar
-//  val services: TestService[Int :: Byte :: Long :: HNil, String :: String :: String :: HNil] = foo :> bar :> baz
+  val dbService: TestService[Db, Db] = createTestService("DatabaseService", Db)
+  val httpService: TestService[Http, Http] = createTestService("HttpService", Http)
+  val emailService: TestService[Email, Email] = createTestService("EmailService", Email)
 
-  it should "apply" in {
-    services.use { (i: Int, b: Byte) =>
-      test
-    }.unsafePerformSync
+  private val service: TestService[
+    Db => Http => Email => Unit,
+    Unit => (Db, Unit => (Http, Unit => (Email, Unit => Unit))) // TODO: hide this type
+  ] = dbService :>: httpService :>: emailService :>: returning[Unit]
+
+  /*
+  E: moki.Ev[Unit => (Db, Unit => (Http, Unit => (Email, Unit => Unit))),
+             Db => (Http => (Email => Unit))]
+   */
+  it should "apply" in service {
+    (dbClient: Db) => (httpClient: Http) => (emailClient: Email) => {
+      dbClient mustEqual Db
+      httpClient mustEqual Http
+      emailClient mustEqual Email
+    }
   }
-
-  val test: (String, String) => Task[Unit] =
-    (s1, s2) => Task.delay{ println(s"Using $s1 and $s2"); () }
 }
