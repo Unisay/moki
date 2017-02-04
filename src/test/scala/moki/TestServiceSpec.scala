@@ -2,11 +2,12 @@ package moki
 
 import moki.TestService._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
-import moki.Ev._
+import org.slf4j.LoggerFactory
 
 import scalaz.concurrent.Task
 
 class TestServiceSpec extends FlatSpec with MustMatchers {
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   behavior of "TestService"
 
@@ -19,21 +20,22 @@ class TestServiceSpec extends FlatSpec with MustMatchers {
   trait Done
   object Done extends Done
 
-  def createTestService[S](name: String, state: S) = TestService(
-    startTask = Task.delay { println(s"Starting $name with state = $state"); state },
-    stopTask  = Task.delay { println(s"Stopping $name") })
+  def testService[S](name: String, state: S) = TestService(
+    startTask = Task.delay { logger.info(s"Starting $name with state = $state"); state },
+    stopTask  = (s: S) => Task.delay { logger.info(s"Stopping $name for state $s") })
 
-  val dbService: TestService[Db, Db] = createTestService("DatabaseService", Db)
-  val httpService: TestService[Http, Http] = createTestService("HttpService", Http)
-  val emailService: TestService[Email, Email] = createTestService("EmailService", Email)
+  private val services =
+    testService("DatabaseService", Db) :>:
+    testService("HttpService", Http)   :>:
+    testService("EmailService", Email) :>:
+    result[Assertion]
 
-  private val service = dbService :>: httpService :>: emailService :>: returning[Assertion]
-
-  it should "apply" in service {
+  it should "apply" in runSync(services) {
     dbClient => httpClient => emailClient => {
+      logger.info("Doing assertions...")
       dbClient mustEqual Db
       httpClient mustEqual Http
       emailClient mustEqual Email
     }
-  }.unsafePerformSync
+  }
 }
