@@ -60,12 +60,6 @@ object TestService {
     def apply(p: P, c: C): Task[Out]
   }
 
-  implicit def baseT[A, B]: Applicator[Unit => A, A => Task[B]] =
-    new Applicator[Unit => A, A => Task[B]] {
-      type Out = B
-      def apply(p: Unit => A, c: A => Task[B]): Task[Out] = c(p(()))
-    }
-
   implicit def base[A, B]: Applicator[Unit => A, A => B] =
     new Applicator[Unit => A, A => B] {
       type Out = B
