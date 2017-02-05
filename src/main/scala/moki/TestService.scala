@@ -4,6 +4,8 @@ import moki.TestService._
 
 import scalaz.Scalaz._
 import scalaz.concurrent.Task
+import fs2.Stream
+import fs2.interop.scalaz._
 
 sealed trait TestService[F, S] {
   def start: Task[S]
@@ -43,11 +45,7 @@ object TestService {
     }
 
   def run[F, S](services: TestService[F, S])(f: F)(implicit A: Applicator[S, F]): Task[A.Out] =
-    for {
-      s <- services.start
-      o <- applyT(s, f)
-      _ <- services.stop(s)
-    } yield o
+    Stream.bracket(services.start)(s => Stream.eval(applyT(s, f)), services.stop).runLast.map(_.get)
 
   def runSync[F, S](services: TestService[F, S])(f: F)(implicit A: Applicator[S, F]): A.Out =
     run(services)(f).unsafePerformSync
@@ -59,6 +57,13 @@ object TestService {
     type Out
     def apply(p: P, c: C): Task[Out]
   }
+
+  // Takes precedence, don't remove!
+  implicit def baseT[A, B]: Applicator[Unit => A, A => Task[B]] =
+    new Applicator[Unit => A, A => Task[B]] {
+      type Out = B
+      def apply(p: Unit => A, c: A => Task[B]): Task[Out] = c(p(()))
+    }
 
   implicit def base[A, B]: Applicator[Unit => A, A => B] =
     new Applicator[Unit => A, A => B] {

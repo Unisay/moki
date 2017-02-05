@@ -7,13 +7,16 @@ import fs2.interop.scalaz._
 import org.http4s.{HttpService, _}
 import org.http4s.server.Server
 import org.http4s.server.blaze._
+import scalaz.syntax.monad._
 
 import scalaz.concurrent.Task
 
 object Moki {
 
-  def httpService(host: String = "localhost", port: Int): TestService[MokiClient, MokiClient] =
-    TestService(startServer(host, port), _.shutdownServer)
+  def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient, MokiClient] =
+    TestService(
+      Task.delay { println(s"Starting server $host:$port") } >> startServer(host, port),
+      client => Task.delay { println(s"Stopping server $host:$port") } >> client.shutdownServer)
 
   def startServer(host: String, port: Int): Task[MokiClient] =
     for {

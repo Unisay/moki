@@ -14,9 +14,9 @@ class MokiTest extends FlatSpec with MustMatchers {
 
   "Moki server" must "work as expected" in {
     val services =
-      Moki.httpService(port = 8080) :>:
-      Moki.httpService(port = 8081) :>:
-      Moki.httpService(port = 8082) :>:
+      Moki.httpService() :>:
+      Moki.httpService() :>:
+      Moki.httpService() :>:
       result[Task[Assertion]]
 
     runSync(services) {
