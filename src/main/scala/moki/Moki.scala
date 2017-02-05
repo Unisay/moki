@@ -4,26 +4,25 @@ import fs2._
 import fs2.async._
 import fs2.async.mutable.{Queue, Signal}
 import fs2.interop.scalaz._
-import org.http4s.{HttpService, _}
+import org.http4s.Uri.RegName
+import org.http4s._
+import org.http4s.dsl._
 import org.http4s.server.Server
 import org.http4s.server.blaze._
-import scalaz.syntax.monad._
 
 import scalaz.concurrent.Task
 
 object Moki {
 
   def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient, MokiClient] =
-    TestService(
-      Task.delay { println(s"Starting server $host:$port") } >> startServer(host, port),
-      client => Task.delay { println(s"Stopping server $host:$port") } >> client.shutdownServer)
+    TestService(startServer(host, port), _.server.shutdown)
 
   def startServer(host: String, port: Int): Task[MokiClient] =
     for {
       queue  <- boundedQueue[Task, Request](maxSize = Int.MaxValue)
       signal <- Signal((_: Request) => Response(Status.NotFound))
       server <- buildServer(queue, signal, host, port)
-    } yield new MokiClient(queue, signal, server)
+    } yield new MokiClient(server, queue, signal)
 
   private def buildServer(queue: Queue[Task, Request],
                           signal: Signal[Task, Request => Response],
@@ -42,11 +41,13 @@ object Moki {
   }
 }
 
-class MokiClient private[moki](private val queue: Queue[Task, Request],
-                               private val signal: Signal[Task, Request => Response],
-                               private val server: Server) {
+class MokiClient private[moki](val server: Server,
+                               private val queue: Queue[Task, Request],
+                               private val signal: Signal[Task, Request => Response]) {
+  private val address = server.address
+  private val authority = Uri.Authority(host = RegName(address.getHostString), port = Option(address.getPort))
+  val uri = Uri(scheme = Some("http".ci), authority = Some(authority))
   def setResponder(f: Request => Response): Task[Unit] = signal set f
   def received: Task[Int] = queue.available.get.map(Int.MaxValue - _)
   def requests: Stream[Task, Request] = queue.dequeue
-  def shutdownServer: Task[Unit] = server.shutdown
 }
