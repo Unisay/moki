@@ -2,6 +2,7 @@ package moki
 
 import fs2._
 import fs2.async._
+import fs2.async.immutable.Signal
 import fs2.async.mutable.Queue
 import fs2.interop.scalaz._
 import org.http4s._
@@ -12,11 +13,15 @@ import scalaz.concurrent.Task
 import scalaz.syntax.functor._
 
 object Moki {
+
+  def testService(host: String, port: Int): TestService[MokiClient, MokiClient] =
+    TestService(startServer(host, port), _.shutdownServer)
+
   def startServer(host: String, port: Int): Task[MokiClient] =
     for {
-      queue  <- unboundedQueue[Task, Request]
+      queue  <- boundedQueue[Task, Request](maxSize = Int.MaxValue)
       server <- server(queue, host, port)
-    } yield new MokiClient(queue.dequeue, server)
+    } yield new MokiClient(queue, server)
 
   private def server(queue: Queue[Task, Request], host: String, port: Int): Task[Server] = {
     val httpService = HttpService {
@@ -30,6 +35,8 @@ object Moki {
   }
 }
 
-class MokiClient private[moki](val requests: Stream[Task, Request], private val server: Server) {
+class MokiClient private[moki](val queue: Queue[Task, Request], private val server: Server) {
+  def received: Task[Int] = queue.available.get.map(Int.MaxValue - _)
+  def requests: Stream[Task, Request] = queue.dequeue
   def shutdownServer: Task[Unit] = server.shutdown
 }
