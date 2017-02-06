@@ -4,6 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.12.1"
 
+licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 
 scalacOptions ++= Seq(
   "-unchecked",

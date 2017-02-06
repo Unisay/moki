@@ -3,7 +3,6 @@ package moki
 import fs2.interop.scalaz._
 import moki.TestService._
 import org.http4s.client.blaze.SimpleHttp1Client
-import org.http4s.dsl._
 import org.http4s.{Response, Status}
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 
