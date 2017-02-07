@@ -1,4 +1,4 @@
-Moki
+Moki [![Build Status](https://travis-ci.org/Unisay/moki.svg?branch=master)](https://travis-ci.org/Unisay/moki)
 ====
 _Integration testing toolkit for Scala_
 
