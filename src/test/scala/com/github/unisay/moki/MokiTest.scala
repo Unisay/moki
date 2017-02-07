@@ -1,9 +1,9 @@
-package moki
+package com.github.unisay.moki
 
 import fs2.interop.scalaz._
-import moki.TestService._
+import com.github.unisay.moki.TestService._
 import org.http4s.client.blaze.SimpleHttp1Client
-import org.http4s.{Response, Status}
+import org.http4s.dsl._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 
 import scala.concurrent.duration._
@@ -20,7 +20,7 @@ class MokiTest extends FlatSpec with MustMatchers {
 
     runSync(services) {
       http1 => http2 => http3 => for {
-        _         <- http1.setResponder(_ => Response(Status.Ok))
+        _         <- http1.respond(_ => Ok())
         response  <- SimpleHttp1Client().expect[String](http1.uri)
         paths1    <- http1.requests.take(1).map(_.uri.path).runLog.timed(10.second)
         received2 <- http2.received

@@ -1,4 +1,4 @@
-package moki
+package com.github.unisay.moki
 
 object TestApplication {
 
@@ -6,7 +6,7 @@ object TestApplication {
     println("Test Application started with arguments: " + args.mkString(" "))
     while (true) {
       println("Working...")
-      Thread.sleep(1000)
+      Thread.sleep(100)
     }
   }
 

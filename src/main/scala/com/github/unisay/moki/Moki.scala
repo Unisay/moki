@@ -1,5 +1,6 @@
-package moki
+package com.github.unisay.moki
 
+import com.github.unisay.moki.TestService.TestService
 import fs2._
 import fs2.async._
 import fs2.async.mutable.{Queue, Signal}
@@ -14,40 +15,40 @@ import scalaz.concurrent.Task
 
 object Moki {
 
-  def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient, MokiClient] =
+  def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient] =
     TestService(startServer(host, port), _.server.shutdown)
 
   def startServer(host: String, port: Int): Task[MokiClient] =
     for {
       queue  <- boundedQueue[Task, Request](maxSize = Int.MaxValue)
-      signal <- Signal((_: Request) => Response(Status.NotFound))
+      signal <- Signal(HttpService.lift(_ => NotFound()))
       server <- buildServer(queue, signal, host, port)
     } yield new MokiClient(server, queue, signal)
 
   private def buildServer(queue: Queue[Task, Request],
-                          signal: Signal[Task, Request => Response],
-                          host: String, port: Int): Task[Server] = {
+                          signal: Signal[Task, HttpService],
+                          host: String,
+                          port: Int): Task[Server] = {
     val service = HttpService {
       case request =>
         for {
           responder <- signal.get
-          _ <- queue.enqueue1(request)
-        } yield responder(request)
+          _         <- queue.enqueue1(request)
+          response  <- responder.run(request)
+        } yield response
     }
-    BlazeBuilder
-      .bindHttp(port, host)
-      .mountService(service, "/")
-      .start
+    BlazeBuilder.bindHttp(port, host).mountService(service, "/").start
   }
 }
 
 class MokiClient private[moki](val server: Server,
                                private val queue: Queue[Task, Request],
-                               private val signal: Signal[Task, Request => Response]) {
+                               private val signal: Signal[Task, HttpService]) {
   private val address = server.address
   private val authority = Uri.Authority(host = RegName(address.getHostString), port = Option(address.getPort))
   val uri = Uri(scheme = Some("http".ci), authority = Some(authority))
-  def setResponder(f: Request => Response): Task[Unit] = signal set f
+  def respond(service: HttpService): Task[Unit] = signal set service
+  def respond(f: Request => Task[Response]): Task[Unit] = respond(HttpService lift f)
   def received: Task[Int] = queue.available.get.map(Int.MaxValue - _)
   def requests: Stream[Task, Request] = queue.dequeue
 }

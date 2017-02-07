@@ -1,6 +1,6 @@
-package moki
+package com.github.unisay.moki
 
-import moki.TestService._
+import com.github.unisay.moki.TestService._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 import org.slf4j.LoggerFactory
 

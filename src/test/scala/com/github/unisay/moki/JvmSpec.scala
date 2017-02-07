@@ -1,4 +1,4 @@
-package moki
+package com.github.unisay.moki
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 
@@ -11,25 +11,24 @@ import org.scalatest.time._
 
 class JvmSpec extends FlatSpec with MustMatchers with Eventually {
 
-  implicit override val patienceConfig =
-    PatienceConfig(timeout = scaled(Span(2, Seconds)), interval = scaled(Span(5, Millis)))
+  "Jvm.testService" must "start and stop" in runSync(testService :>: result[Assertion]) { _ =>
+    eventually(log must startWith("Test Application started with arguments: Hello World\nWorking..."))
+  }
 
   private val outputStream = new ByteArrayOutputStream()
-  private val scalaVersion = if (sys.props.getOrElse("version.number", "unknown").startsWith("2.12")) "2.12" else "2.11"
+
+  private def log: String = new String(outputStream.toByteArray, UTF_8)
+
+  private def cp(cs: Class[_]*): String = cs.map(_.getProtectionDomain.getCodeSource.getLocation.getPath).mkString(":")
 
   private val testService = Jvm.testService(
     mainClass = TestApplication.getClass.getName.stripSuffix("$"),
     jvmArgs = List("-Xms64m", "-Xmx256m"),
     programArgs = List("Hello", "World"),
-    customClasspath = Some(s"target/scala-$scalaVersion/test-classes"),
+    customClasspath = Some(cp(TestApplication.getClass)),
     output = new PrintStream(outputStream)
   )
 
-  "Jvm.testService" must "start and stop" in runSync(testService :>: result[Assertion]) { _ =>
-    eventually {
-      val log = new String(outputStream.toByteArray, UTF_8)
-      log must startWith("Test Application started with arguments: Hello World\nWorking...")
-    }
-  }
-
+  implicit override val patienceConfig =
+    PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = scaled(Span(50, Millis)))
 }

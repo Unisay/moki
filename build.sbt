@@ -1,6 +1,6 @@
 name := "moki"
 
-version := "1.0.1"
+version := "1.1.0"
 
 organization := "com.github.unisay"
 
@@ -30,4 +30,7 @@ resolvers += Resolver.sonatypeRepo("releases")
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.3")
 
 lazy val moki = (project in file("."))
-  .settings(libraryDependencies ++= Deps.all)
+  .settings(
+    libraryDependencies ++= Deps.all,
+    fork in Test := true
+  )

@@ -1,4 +1,4 @@
-package moki
+package com.github.unisay.moki
 
 import org.scalatest.{FlatSpec, MustMatchers}
 

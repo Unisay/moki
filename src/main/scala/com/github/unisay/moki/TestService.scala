@@ -1,29 +1,29 @@
-package moki
+package com.github.unisay.moki
 
-import moki.TestService._
+import com.github.unisay.moki.TestService._
 
 import scalaz.Scalaz._
 import scalaz.concurrent.Task
 import fs2.Stream
 import fs2.interop.scalaz._
 
-sealed trait TestService[F, S] {
+sealed trait BaseTestService[F, S] {
   def start: Task[S]
   def stop: S => Task[Unit]
 }
 
-trait InitialTestService[F, S] extends TestService[F, S] { s1 =>
-  def within[G, T](s2: TestService[G, T]): ComposableTestService[G => F, Unit => T] = :>:(s2)
-  def :>:[G, T](s2: TestService[G, T]): ComposableTestService[G => F, Unit => T] =
+trait InitialTestService[F, S] extends BaseTestService[F, S] { s1 =>
+  def within[G, T](s2: BaseTestService[G, T]): ComposableTestService[G => F, Unit => T] = :>:(s2)
+  def :>:[G, T](s2: BaseTestService[G, T]): ComposableTestService[G => F, Unit => T] =
     new ComposableTestService[G => F, Unit => T] {
       def start: Task[Unit => T] = s2.start map thunk
       def stop: (Unit => T) => Task[Unit] = f => s2.stop(f(()))
     }
 }
 
-trait ComposableTestService[F, S] extends TestService[F, S] { s1 =>
-  def within[G, T](s2: TestService[G, T]): ComposableTestService[G => F, Unit => (T, S)] = :>:(s2)
-  def :>:[G, T](s2: TestService[G, T]): ComposableTestService[G => F, Unit => (T, S)] =
+trait ComposableTestService[F, S] extends BaseTestService[F, S] { s1 =>
+  def within[G, T](s2: BaseTestService[G, T]): ComposableTestService[G => F, Unit => (T, S)] = :>:(s2)
+  def :>:[G, T](s2: BaseTestService[G, T]): ComposableTestService[G => F, Unit => (T, S)] =
     new ComposableTestService[G => F, Unit => (T, S)] {
       def start: Task[Unit => (T, S)] = (s2.start |@| s1.start)((a, b) => thunk(a -> b))
       def stop: (Unit => (T, S)) => Task[Unit] = f => f(()) match { case (t, s) => s1.stop(s) >> s2.stop(t) }
@@ -31,8 +31,9 @@ trait ComposableTestService[F, S] extends TestService[F, S] { s1 =>
 }
 
 object TestService {
+  type TestService[S] = BaseTestService[S, S]
 
-  def apply[S0](startTask: Task[S0], stopTask: S0 => Task[Unit]): ComposableTestService[S0, S0] =
+  def apply[S0](startTask: Task[S0], stopTask: S0 => Task[Unit]): TestService[S0] =
     new ComposableTestService[S0, S0] {
       def start: Task[S0] = startTask
       def stop: S0 => Task[Unit] = stopTask
@@ -44,10 +45,10 @@ object TestService {
       def stop: T => Task[Unit] = ignore(Task.now(()))
     }
 
-  def run[F, S](services: TestService[F, S])(f: F)(implicit A: Applicator[S, F]): Task[A.Out] =
+  def run[F, S](services: BaseTestService[F, S])(f: F)(implicit A: Applicator[S, F]): Task[A.Out] =
     Stream.bracket(services.start)(s => Stream.eval(applyT(s, f)), services.stop).runLast.map(_.get)
 
-  def runSync[F, S](services: TestService[F, S])(f: F)(implicit A: Applicator[S, F]): A.Out =
+  def runSync[F, S](services: BaseTestService[F, S])(f: F)(implicit A: Applicator[S, F]): A.Out =
     run(services)(f).unsafePerformSync
 
   def ignore[A, B](a: A): B => A = _ => a
