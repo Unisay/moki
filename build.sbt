@@ -6,6 +6,8 @@ organization := "com.github.unisay"
 
 scalaVersion := "2.12.1"
 
+scalaOrganization in ThisBuild := "org.typelevel"
+
 licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 
 scalacOptions ++= Seq(

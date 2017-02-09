@@ -11,7 +11,7 @@ import scalaz.concurrent.Task
 
 class MokiTest extends FlatSpec with MustMatchers {
 
-  "Moki server" must "work as expected" in {
+  "Moki httpService" must "work as expected" in {
     val services =
       Moki.httpService() :>:
       Moki.httpService() :>:
