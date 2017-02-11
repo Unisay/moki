@@ -1,11 +1,11 @@
 package com.github.unisay.moki
 
 import com.github.unisay.moki.TestService._
+import fs2.Stream
+import fs2.interop.scalaz._
 
 import scalaz.Scalaz._
 import scalaz.concurrent.Task
-import fs2.Stream
-import fs2.interop.scalaz._
 
 sealed trait BaseTestService[F, S] {
   def start: Task[S]

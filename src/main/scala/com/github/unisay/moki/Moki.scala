@@ -13,12 +13,12 @@ import org.http4s.server.blaze._
 
 import scalaz.concurrent.Task
 
-object Moki {
+object Moki extends JvmService with ProcessService {
 
   def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient] =
-    TestService(startServer(host, port), _.server.shutdown)
+    TestService(startHttpServer(host, port), _.server.shutdown)
 
-  def startServer(host: String, port: Int): Task[MokiClient] =
+  private def startHttpServer(host: String, port: Int): Task[MokiClient] =
     for {
       queue  <- boundedQueue[Task, Request](maxSize = Int.MaxValue)
       signal <- Signal(HttpService.lift(_ => NotFound()))
@@ -47,8 +47,9 @@ class MokiClient private[moki](val server: Server,
   private val address = server.address
   private val authority = Uri.Authority(host = RegName(address.getHostString), port = Option(address.getPort))
   val uri = Uri(scheme = Some("http".ci), authority = Some(authority))
-  def respond(service: HttpService): Task[Unit] = signal set service
+  def respond(service: HttpService): Task[Unit] = Task.fork(signal set service)
   def respond(f: Request => Task[Response]): Task[Unit] = respond(HttpService lift f)
-  def received: Task[Int] = queue.available.get.map(Int.MaxValue - _)
+  def received: Task[Int] = Task.fork(queue.available.get.map(Int.MaxValue - _))
   def requests: Stream[Task, Request] = queue.dequeue
 }
+

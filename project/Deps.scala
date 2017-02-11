@@ -2,9 +2,9 @@ import sbt._
 
 object Deps {
 
-  private val scalaz = Seq("org.scalaz" % "scalaz-core_2.12" % "7.2.7")
+  private val scalaz = Seq("org.scalaz" %% "scalaz-core" % "7.2.8")
 
-  private val fs2 = Seq("co.fs2" % "fs2-core_2.12" % "0.9.2")
+  private val fs2 = Seq("co.fs2" %% "fs2-core" % "0.9.2")
 
   private val fs2scalaz = Seq("co.fs2" %% "fs2-scalaz" % "0.2.0")
 

@@ -9,9 +9,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time._
 
-class JvmSpec extends FlatSpec with MustMatchers with Eventually {
+class JvmServiceSpec extends FlatSpec with MustMatchers with Eventually {
 
-  "Jvm.testService" must "start and stop" in runSync(testService :>: result[Assertion]) { _ =>
+  "Jvm.jvmService" must "start and stop" in runSync(testService :>: result[Assertion]) { _ =>
     eventually(log must startWith("Test Application started with arguments: Hello World\nWorking..."))
   }
 
@@ -21,7 +21,7 @@ class JvmSpec extends FlatSpec with MustMatchers with Eventually {
 
   private def cp(cs: Class[_]*): String = cs.map(_.getProtectionDomain.getCodeSource.getLocation.getPath).mkString(":")
 
-  private val testService = Jvm.testService(
+  private val testService = Moki.jvmService(
     mainClass = TestApplication.getClass.getName.stripSuffix("$"),
     jvmArgs = List("-Xms64m", "-Xmx256m"),
     programArgs = List("Hello", "World"),
