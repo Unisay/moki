@@ -29,8 +29,6 @@ scalacOptions ++= Seq(
 
 resolvers += Resolver.sonatypeRepo("releases")
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.3")
-
 lazy val moki = (project in file("."))
   .settings(
     libraryDependencies ++= Deps.all,

@@ -15,11 +15,9 @@ object Deps {
   private val http4s = Seq("dsl", "blaze-server", "blaze-client")
     .map(d => "org.http4s" %% ("http4s-" + d) % "0.15.3a")
 
-  private val shapeless = Seq("com.chuusai" %% "shapeless" % "2.3.2")
-
   private val scalatest = Seq("org.scalatest" %% "scalatest" % "3.0.1")
 
-  private val compile = scalaz ++ shapeless ++ http4s ++ slf4jApi ++ fs2 ++ fs2scalaz
+  private val compile = scalaz ++ http4s ++ slf4jApi ++ fs2 ++ fs2scalaz
   private val test = scalatest ++ logback
 
   val all: Seq[ModuleID] = compile ++ test.map(_ % "test")

@@ -1,9 +1,8 @@
 package com.github.unisay.moki
 
 import java.io._
-import scala.collection.JavaConverters._
 
-import com.github.unisay.moki.TestService.TestService
+import scala.collection.JavaConverters._
 import org.slf4j.{Logger, LoggerFactory}
 
 import scalaz.concurrent.Task
@@ -17,7 +16,7 @@ trait ProcessService {
                      forceStop: Boolean = false): TestService[Process] =
     TestService(
       startTask = startProcess(output)(arguments),
-      stopTask = stopProcess(forceStop))
+      stopTask = stopProcess(_: Process, forceStop))
 
   protected def startProcess(output: PrintStream)(arguments: List[String]): Task[Process] =
     Task.delay {
@@ -29,7 +28,7 @@ trait ProcessService {
       process
     }
 
-  protected def stopProcess(forceStop: Boolean)(process: Process): Task[Unit] =
+  protected def stopProcess(process: Process, forceStop: Boolean): Task[Unit] =
     Task.delay {
       if (process.isAlive) {
         if (forceStop) {

@@ -1,6 +1,5 @@
 package com.github.unisay.moki
 
-import com.github.unisay.moki.TestService.TestService
 import fs2._
 import fs2.async._
 import fs2.async.mutable.{Queue, Signal}
@@ -16,7 +15,7 @@ import scalaz.concurrent.Task
 object Moki extends JvmService with ProcessService {
 
   def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient] =
-    TestService(startHttpServer(host, port), _.server.shutdown)
+    TestService(startHttpServer(host, port), (_: MokiClient).server.shutdown)
 
   private def startHttpServer(host: String, port: Int): Task[MokiClient] =
     for {

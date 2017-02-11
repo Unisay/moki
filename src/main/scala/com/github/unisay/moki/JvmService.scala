@@ -2,8 +2,6 @@ package com.github.unisay.moki
 
 import java.io._
 
-import com.github.unisay.moki.TestService.TestService
-
 trait JvmService { this: ProcessService =>
 
   def jvmService(mainClass: String,
@@ -15,7 +13,7 @@ trait JvmService { this: ProcessService =>
     TestService(
       startTask = composeArguments(mainClass, jvmArgs, customClasspath, programArgs)
           .fold(throw new RuntimeException("Failed to initialize JVM process"))(startProcess(output)),
-      stopTask = stopProcess(forceStop))
+      stopTask = stopProcess(_: Process, forceStop))
 
   private def composeArguments(mainClass: String,
                                jvmArgs: List[String],

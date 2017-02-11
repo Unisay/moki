@@ -1,6 +1,5 @@
 package com.github.unisay.moki
 
-import com.github.unisay.moki.TestService._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 import org.slf4j.LoggerFactory
 
@@ -24,14 +23,13 @@ class TestServiceSpec extends FlatSpec with MustMatchers {
     startTask = Task.delay { logger.info(s"Starting $name with state = $state"); state },
     stopTask  = (s: S) => Task.delay { logger.info(s"Stopping $name for state $s") })
 
-  private val services =
+  private val env =
     testService("DatabaseService", Db) :>:
     testService("HttpService", Http)   :>:
     testService("EmailService", Email) :>:
     result[Assertion]
 
-  it should "apply" in runSync(services) {
-    dbClient => httpClient => emailClient => {
+  it should "apply" in env.runSync { dbClient => httpClient => emailClient => {
       logger.info("Doing assertions...")
       dbClient mustEqual Db
       httpClient mustEqual Http

@@ -1,7 +1,7 @@
 package com.github.unisay.moki
 
+import com.github.unisay.moki.Moki.httpService
 import fs2.interop.scalaz._
-import com.github.unisay.moki.TestService._
 import org.http4s.client.blaze.SimpleHttp1Client
 import org.http4s.dsl._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
@@ -12,13 +12,7 @@ import scalaz.concurrent.Task
 class MokiTest extends FlatSpec with MustMatchers {
 
   "Moki httpService" must "work as expected" in {
-    val services =
-      Moki.httpService() :>:
-      Moki.httpService() :>:
-      Moki.httpService() :>:
-      result[Task[Assertion]]
-
-    runSync(services) {
+    httpService() :>: httpService() :>: httpService() :>: result[Task[Assertion]] runSync {
       http1 => http2 => http3 => for {
         _         <- http1.respond(_ => Ok())
         response  <- SimpleHttp1Client().expect[String](http1.uri)
@@ -31,6 +25,15 @@ class MokiTest extends FlatSpec with MustMatchers {
         received2 mustEqual 0
         received3 mustEqual 0
       }
+    }
+  }
+
+  "Dependent services" must "work as expected" in {
+    val portProducer = TestService(Task.now(8080))
+    val portConsumer = ConfiguredTestService((i: Int) => Task.delay(println(s"Port = $i")))
+
+    portProducer :>: portConsumer :>: result[Assertion] runSync {
+      port => _ => port mustEqual 8080
     }
   }
 
