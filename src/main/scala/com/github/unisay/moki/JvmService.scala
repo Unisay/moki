@@ -2,6 +2,8 @@ package com.github.unisay.moki
 
 import java.io._
 
+import fs2.Strategy
+
 trait JvmService { this: ProcessService =>
 
   def jvmService(mainClass: String,
@@ -9,7 +11,8 @@ trait JvmService { this: ProcessService =>
                  programArgs: List[String] = Nil,
                  customClasspath: Option[String] = None,
                  output: PrintStream = System.out,
-                 forceStop: Boolean = false): TestService[Process] =
+                 forceStop: Boolean = false)
+                (implicit s: Strategy): TestService[Process] =
     TestService(
       startTask = composeArguments(mainClass, jvmArgs, customClasspath, programArgs)
           .fold(throw new RuntimeException("Failed to initialize JVM process"))(startProcess(output)),

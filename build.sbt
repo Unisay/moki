@@ -1,6 +1,6 @@
 name := "moki"
 
-version := "1.1.2"
+version := "3.0.0"
 
 organization := "com.github.unisay"
 
@@ -17,6 +17,7 @@ scalacOptions ++= Seq(
   "-Xlint",
   "-Xcheckinit",
   "-Ypartial-unification",
+  "-Yinduction-heuristics",
   "-Ywarn-unused-import",
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",

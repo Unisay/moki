@@ -1,6 +1,6 @@
 package com.github.unisay.moki
 
-import scalaz.concurrent.Task
+import fs2.Task
 
 trait Domain {
 

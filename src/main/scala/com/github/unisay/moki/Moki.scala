@@ -9,25 +9,26 @@ import org.http4s._
 import org.http4s.dsl._
 import org.http4s.server.Server
 import org.http4s.server.blaze._
+import fs2.Task
 
-import scalaz.concurrent.Task
+import scalaz.concurrent.{Task => ZTask}
 
 object Moki extends JvmService with ProcessService {
 
-  def httpService(host: String = "localhost", port: Int = 0): TestService[MokiClient] =
-    TestService(startHttpServer(host, port), (_: MokiClient).server.shutdown)
+  def httpService(host: String = "localhost", port: Int = 0)(implicit s: Strategy): TestService[MokiClient] =
+    TestService(startTask = startHttpServer(host, port).toFs2, stopTask = _.server.shutdown.toFs2)
 
-  private def startHttpServer(host: String, port: Int): Task[MokiClient] =
+  private def startHttpServer(host: String, port: Int)(implicit s: Strategy): ZTask[MokiClient] =
     for {
-      queue  <- boundedQueue[Task, Request](maxSize = Int.MaxValue)
+      queue <- boundedQueue[ZTask, Request](maxSize = Int.MaxValue)
       signal <- Signal(HttpService.lift(_ => NotFound()))
       server <- buildServer(queue, signal, host, port)
     } yield new MokiClient(server, queue, signal)
 
-  private def buildServer(queue: Queue[Task, Request],
-                          signal: Signal[Task, HttpService],
+  private def buildServer(queue: Queue[ZTask, Request],
+                          signal: Signal[ZTask, HttpService],
                           host: String,
-                          port: Int): Task[Server] = {
+                          port: Int): ZTask[Server] = {
     val service = HttpService {
       case request =>
         for {
@@ -41,14 +42,15 @@ object Moki extends JvmService with ProcessService {
 }
 
 class MokiClient private[moki](val server: Server,
-                               private val queue: Queue[Task, Request],
-                               private val signal: Signal[Task, HttpService]) {
+                               private val queue: Queue[ZTask, Request],
+                               private val signal: Signal[ZTask, HttpService])
+                              (implicit s: Strategy) {
   private val address = server.address
   private val authority = Uri.Authority(host = RegName(address.getHostString), port = Option(address.getPort))
   val uri = Uri(scheme = Some("http".ci), authority = Some(authority))
-  def respond(service: HttpService): Task[Unit] = Task.fork(signal set service)
-  def respond(f: Request => Task[Response]): Task[Unit] = respond(HttpService lift f)
-  def received: Task[Int] = Task.fork(queue.available.get.map(Int.MaxValue - _))
-  def requests: Stream[Task, Request] = queue.dequeue
+  def respond(service: HttpService): Task[Unit] = Task((signal set service).unsafePerformSync)
+  def respond(f: Request => ZTask[Response]): Task[Unit] = respond(HttpService lift f)
+  def received: Task[Int] = queue.available.get.map(Int.MaxValue - _).toFs2
+  def requests: Stream[Task, Request] = queue.dequeue.translate(scalazToFs2)
 }
 

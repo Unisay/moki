@@ -1,8 +1,7 @@
 package com.github.unisay.moki
 
+import fs2.Task
 import org.scalatest.{FlatSpec, MustMatchers}
-
-import scalaz.concurrent.Task
 
 class InductiveApplicationSpec extends FlatSpec with MustMatchers {
 
@@ -28,7 +27,7 @@ class InductiveApplicationSpec extends FlatSpec with MustMatchers {
   "single application" must "return task" in {
     val producer: Unit => Int = thunk(42)
     val consumer: Int => String = (i: Int) => i.toString
-    applyT(producer, consumer).unsafePerformSync mustEqual "42"
+    applyT(producer, consumer).unsafeRun() mustEqual "42"
   }
 
   "inductive application" must "return task" in {
@@ -38,7 +37,7 @@ class InductiveApplicationSpec extends FlatSpec with MustMatchers {
     val producer: Producer = thunk(42 -> thunk('c' -> thunk('s)))
     val consumer: Consumer = i => c => s => s"$i $c $s"
 
-    applyT(producer, consumer).unsafePerformSync mustEqual "42 c 's"
+    applyT(producer, consumer).unsafeRun() mustEqual "42 c 's"
   }
 
   def ignore[A, B](a: A): B => A = _ => a

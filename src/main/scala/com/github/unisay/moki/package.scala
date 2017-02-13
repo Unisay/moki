@@ -1,9 +1,9 @@
 package com.github.unisay
 
-import scalaz.concurrent.Task
-import fs2.Stream
-import fs2.interop.scalaz._
-import scalaz.syntax.monad._
+import fs2.util.~>
+import fs2.{Stream, Task}
+
+import scalaz.concurrent.{Task => ZTask}
 
 package object moki extends Domain {
 
@@ -13,7 +13,7 @@ package object moki extends Domain {
         def start: I2 => Task[Unit => (S2, S)] =
           i2 => for {i <- sup.start(i2); s <- service.start(i) } yield thunk(i -> s)
         def stop: (Unit => (S2, S)) => Task[Unit] =
-          f => f(()) match { case (s2, s) => sup.stop(s2) >> service.stop(s) }
+          f => f(()) match { case (s2, s) => sup.stop(s2) flatMap ignoreArg(service.stop(s)) }
       }
 
     def run(f: F)(implicit A: Applicator[S, F]): I => Task[A.Out] =
@@ -21,6 +21,18 @@ package object moki extends Domain {
   }
 
   implicit class BaseTestServiceOpsU[U >: Unit, F, S](val service: BaseTestService[U, F, S]) extends AnyVal {
-    def runSync[A >: Unit](f: F)(implicit A: Applicator[S, F]): A.Out = service.run(f)(A)(()).unsafePerformSync
+    def runSync[A >: Unit](f: F)(implicit A: Applicator[S, F]): A.Out = service.run(f)(A)(()).unsafeRun()
+  }
+
+  implicit class ScalazTaskToFs2[A](val ztask: ZTask[A]) extends AnyVal {
+    def toFs2: Task[A] = Task.delay(ztask.unsafePerformSync)
+  }
+
+  implicit class Fs2TaskToScalaz[A](val task: Task[A]) extends AnyVal {
+    def toScalaz: ZTask[A] = ZTask.delay(task.unsafeRun())
+  }
+
+  implicit val scalazToFs2: ZTask ~> Task = new (ZTask ~> Task) {
+    def apply[A](f: ZTask[A]): Task[A] = f.toFs2
   }
 }

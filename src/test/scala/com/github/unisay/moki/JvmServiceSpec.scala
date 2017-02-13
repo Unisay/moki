@@ -1,14 +1,16 @@
 package com.github.unisay.moki
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-
-import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 import java.nio.charset.StandardCharsets.UTF_8
 
+import fs2.Strategy
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time._
+import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 
 class JvmServiceSpec extends FlatSpec with MustMatchers with Eventually {
+
+  private implicit val strategy: Strategy = Strategy.fromCachedDaemonPool("io-thread-pool")
 
   "Jvm.jvmService" must "start and stop" in (testService :>: result[Assertion]).runSync { _ =>
     eventually(log must startWith("Test Application started with arguments: Hello World\nWorking..."))

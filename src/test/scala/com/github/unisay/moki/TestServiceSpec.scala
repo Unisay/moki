@@ -3,7 +3,7 @@ package com.github.unisay.moki
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 import org.slf4j.LoggerFactory
 
-import scalaz.concurrent.Task
+import fs2.Task
 
 class TestServiceSpec extends FlatSpec with MustMatchers {
   private val logger = LoggerFactory.getLogger(this.getClass)

@@ -1,22 +1,21 @@
 package com.github.unisay.moki
 
 import com.github.unisay.moki.Moki.httpService
-import fs2.interop.scalaz._
+import fs2.{Strategy, Task}
 import org.http4s.client.blaze.SimpleHttp1Client
 import org.http4s.dsl._
 import org.scalatest.{Assertion, FlatSpec, MustMatchers}
 
-import scala.concurrent.duration._
-import scalaz.concurrent.Task
-
 class MokiTest extends FlatSpec with MustMatchers {
+
+  private implicit val strategy: Strategy = Strategy.fromCachedDaemonPool("io-thread-pool")
 
   "Moki httpService" must "work as expected" in {
     httpService() :>: httpService() :>: httpService() :>: result[Task[Assertion]] runSync {
       http1 => http2 => http3 => for {
         _         <- http1.respond(_ => Ok())
-        response  <- SimpleHttp1Client().expect[String](http1.uri)
-        paths1    <- http1.requests.take(1).map(_.uri.path).runLog.timed(10.second)
+        response  <- SimpleHttp1Client().expect[String](http1.uri).toFs2
+        paths1    <- http1.requests.take(1).map(_.uri.path).runLog
         received2 <- http2.received
         received3 <- http3.received
       } yield {

@@ -2,10 +2,10 @@ package com.github.unisay.moki
 
 import java.io._
 
-import scala.collection.JavaConverters._
+import fs2.{Strategy, Task}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scalaz.concurrent.Task
+import scala.collection.JavaConverters._
 
 trait ProcessService {
 
@@ -13,13 +13,16 @@ trait ProcessService {
 
   def processService(arguments: List[String] = Nil,
                      output: PrintStream = System.out,
-                     forceStop: Boolean = false): TestService[Process] =
+                     forceStop: Boolean = false)
+                    (implicit s: Strategy): TestService[Process] =
     TestService(
       startTask = startProcess(output)(arguments),
       stopTask = stopProcess(_: Process, forceStop))
 
-  protected def startProcess(output: PrintStream)(arguments: List[String]): Task[Process] =
-    Task.delay {
+  protected def startProcess(output: PrintStream)
+                            (arguments: List[String])
+                            (implicit s: Strategy): Task[Process] =
+    Task {
       val builder = new ProcessBuilder(arguments: _*)
       logger.debug("Starting process: " + builder.command().asScala.mkString(" "))
       val process = builder.start()
@@ -28,8 +31,8 @@ trait ProcessService {
       process
     }
 
-  protected def stopProcess(process: Process, forceStop: Boolean): Task[Unit] =
-    Task.delay {
+  protected def stopProcess(process: Process, forceStop: Boolean)(implicit s: Strategy): Task[Unit] =
+    Task {
       if (process.isAlive) {
         if (forceStop) {
           logger.info("Forcibly destroying process...")
