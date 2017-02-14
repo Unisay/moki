@@ -5,7 +5,7 @@ import fs2.{Stream, Task}
 
 import scalaz.concurrent.{Task => ZTask}
 
-package object moki extends Domain {
+package object moki extends Domain with HttpTestService with JvmService with ProcessService {
 
   implicit class BaseTestServiceOps[I, F, S](val service: BaseTestService[I, F, S]) extends AnyVal {
     def :>:[I2, F2, S2 <: I](sup: BaseTestService[I2, F2, S2]): BaseTestService[I2, F2 => F, Unit => (S2, S)] =

@@ -1,22 +1,18 @@
 package com.github.unisay.moki
 
-import java.io._
-
+import scala.sys.process.{Process, ProcessLogger}
 import fs2.Strategy
 
-trait JvmService { this: ProcessService =>
+trait JvmService {
 
   def jvmService(mainClass: String,
                  jvmArgs: List[String] = Nil,
                  programArgs: List[String] = Nil,
                  customClasspath: Option[String] = None,
-                 output: PrintStream = System.out,
-                 forceStop: Boolean = false)
+                 processLogger: ProcessLogger = defaultProcessLogger)
                 (implicit s: Strategy): TestService[Process] =
-    TestService(
-      startTask = composeArguments(mainClass, jvmArgs, customClasspath, programArgs)
-          .fold(throw new RuntimeException("Failed to initialize JVM process"))(startProcess(output)),
-      stopTask = stopProcess(_: Process, forceStop))
+    processService(composeArguments(mainClass, jvmArgs, customClasspath, programArgs)
+      .getOrElse(sys.error("Failed to initialize JVM process")), processLogger)
 
   private def composeArguments(mainClass: String,
                                jvmArgs: List[String],
@@ -31,3 +27,5 @@ trait JvmService { this: ProcessService =>
     } yield (javaPath :: jvmArgs) ++ ("-cp" :: cp :: mainClass :: programArgs)
   }
 }
+
+object JvmService extends JvmService

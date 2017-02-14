@@ -13,7 +13,7 @@ import fs2.Task
 
 import scalaz.concurrent.{Task => ZTask}
 
-object Moki extends JvmService with ProcessService {
+trait HttpTestService {
 
   def httpService(host: String = "localhost", port: Int = 0)(implicit s: Strategy): TestService[MokiClient] =
     TestService(startTask = startHttpServer(host, port).toFs2, stopTask = _.server.shutdown.toFs2)
@@ -54,3 +54,4 @@ class MokiClient private[moki](val server: Server,
   def requests: Stream[Task, Request] = queue.dequeue.translate(scalazToFs2)
 }
 
+object HttpTestService extends HttpTestService

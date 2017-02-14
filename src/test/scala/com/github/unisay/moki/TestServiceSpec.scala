@@ -34,7 +34,7 @@ class TestServiceSpec extends FlatSpec with MustMatchers {
 
   private val env =
     testService("DatabaseService", Db) :>:
-    testService("HttpService", Http)   :>:
+    testService("HttpTestService", Http)   :>:
     testService("EmailService", Email) :>:
     result[Assertion]
 
@@ -47,7 +47,7 @@ class TestServiceSpec extends FlatSpec with MustMatchers {
         emailClient mustEqual Email
       }
     }
-    val expectedStartLog = "DatabaseService" :: "HttpService" :: "EmailService" :: Nil
+    val expectedStartLog = "DatabaseService" :: "HttpTestService" :: "EmailService" :: Nil
     startLog must contain theSameElementsInOrderAs expectedStartLog
     stopLog must contain theSameElementsInOrderAs expectedStartLog.reverse
   }
