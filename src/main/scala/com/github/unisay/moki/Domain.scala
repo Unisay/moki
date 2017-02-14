@@ -12,11 +12,11 @@ trait Domain {
     def stop: S => Task[Unit]
   }
 
-  trait InitialTestService[F, S] extends BaseTestService[Unit, F, S] { s1 =>
-    def :>:[I2, F2, S2](s2: BaseTestService[I2, F2, S2]): BaseTestService[I2, F2 => F, Unit => S2] =
+  trait InitialTestService[F, S] extends BaseTestService[Unit, F, S] { sub =>
+    def :>:[I2, F2, S2](sup: BaseTestService[I2, F2, S2]): BaseTestService[I2, F2 => F, Unit => S2] =
       new ComposableTestService[I2, F2 => F, Unit => S2] {
-        def start: I2 => Task[Unit => S2] = i2 => s2.start(i2) map thunk
-        def stop: (Unit => S2) => Task[Unit] = f => s2.stop(f(()))
+        def start: I2 => Task[Unit => S2] = i2 => sup.start(i2) map thunk
+        def stop: (Unit => S2) => Task[Unit] = f => sup.stop(f(()))
       }
   }
 

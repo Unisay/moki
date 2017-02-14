@@ -13,7 +13,7 @@ package object moki extends Domain {
         def start: I2 => Task[Unit => (S2, S)] =
           i2 => for {i <- sup.start(i2); s <- service.start(i) } yield thunk(i -> s)
         def stop: (Unit => (S2, S)) => Task[Unit] =
-          f => f(()) match { case (s2, s) => sup.stop(s2) flatMap ignoreArg(service.stop(s)) }
+          f => f(()) match { case (s2, s) => service.stop(s) flatMap ignoreArg(sup.stop(s2)) }
       }
 
     def run(f: F)(implicit A: Applicator[S, F]): I => Task[A.Out] =
