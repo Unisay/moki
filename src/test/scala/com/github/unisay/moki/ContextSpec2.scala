@@ -6,6 +6,7 @@ import org.scalatest.MustMatchers.{a => _, _}
 
 import scalaz._
 import Scalaz._
+import scala.collection.mutable.ListBuffer
 import scalaz.concurrent.Task
 
 object Fixture {
@@ -96,28 +97,34 @@ class ContextSpec extends FlatSpec {
     }
   }
 
+
+
   "composition" must "work" in {
+    val logBuffer = ListBuffer[String]()
+    def log(s: String): Unit = logBuffer += s
+
     val starterA: Starter[Unit, A] = new Starter[Unit, A] {
       def start = Task.delay {
-        println("Starting resource A")
+        log("Starting resource A")
         new Resource[A] {
           def res: A = a
-          def stop: Task[Unit] = Task.delay(println("Stopping resource A"))
+          def stop: Task[Unit] = Task.delay(log("Stopping resource A"))
         }
       }
     }
     val starterB: Starter[Unit, B] = new Starter[Unit, B] {
       def start = Task.delay {
-        println("Starting resource B")
+        log("Starting resource B")
         new Resource[B] {
           def res: B = b
-          def stop: Task[Unit] = Task.delay(println("Stopping resource B"))
+          def stop: Task[Unit] = Task.delay(log("Stopping resource B"))
         }
       }
     }
 
+
     val f: (A, B) => C = (a, b) => {
-      println(s"$a + $b = $c")
+      log(s"$a + $b = $c")
       c
     }
 
@@ -127,15 +134,21 @@ class ContextSpec extends FlatSpec {
         b <- starterB
       } yield f(a, b)
 
-    /*
-    Starting resource A
-    Starting resource B
-    Stopping resource B
-    Stopping resource A
-    a + b = c
-    */
-
     Starter.run(env).unsafePerformSync mustEqual c
+
+    logBuffer must contain theSameElementsInOrderAs List (
+      "Starting resource A",
+      "Starting resource B",
+      "a + b = c",
+      "Stopping resource B",
+      "Stopping resource A"
+    )
+
+    /*
+    ListBuffer("Starting resource A", "Starting resource B", "Stopping resource B", "Stopping resource A", "a + b = c")
+    did not contain the same elements in the same (iterated) order as
+    List("Starting resource A", "Starting resource B", "a + b = c", "Stopping resource B", "Stopping resource A")
+    */
   }
 
 }
