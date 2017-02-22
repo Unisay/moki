@@ -45,110 +45,74 @@ object Fixture {
 
 class ContextSpec extends FlatSpec {
 
-  trait Starter[I, R] {
-    def start: Task[Resource[R]]
-  }
-
-  object Starter {
-
-    def run[I, X, Z](starter: Starter[I, X]): Task[X] =
+  case class Service[R](start: Task[Resource[R]]) {
+    def run[Z](f: R => Task[Z]): Task[Z] =
       for {
-       resX <- starter.start
-       _ <- resX.stop.attempt
-      } yield resX.res
+        r <- start
+        z <- f(r.res)
+        _ <- r.stop.attempt
+      } yield z
+  }
 
-    implicit def monadStarter[I, R]: Monad[Starter[I, ?]] = new Monad[Starter[I, ?]] {
-      def bind[X, Y](starterA: Starter[I, X])(f: (X) => Starter[I, Y]) = new Starter[I, Y] {
-        def start: Task[Resource[Y]] = for {
-          resX <- starterA.start
-          resY <- f(resX.res).start
-        } yield new Resource[Y] {
-          def res: Y = resY.res
-          def stop: Task[Unit] = resY.stop.attempt >> resX.stop
-        }
-      }
+  object Service {
 
-      def point[X](x: => X) = new Starter[I, X] {
-        def start: Task[Resource[X]] =
-          Task.now(new Resource[X] {
-            def res: X = x
-            def stop: Task[Unit] = Task.now(())
-          })
-      }
+    implicit val monadService: Monad[Service] = new Monad[Service] {
+      def bind[X, Y](starterX: Service[X])(xToStarterY: X => Service[Y]) =
+        Service(
+          start = for {
+            resX <- starterX.start
+            resY <- xToStarterY(resX.res).start
+          } yield Resource[Y](res = resY.res, stop = (resY.stop.attempt >> resX.stop.attempt).void)
+        )
+      def point[X](x: => X) = Service(start = Task.now(Resource[X](res = x)))
     }
   }
 
-  trait Resource[R] {
-    def res: R
-    def stop: Task[Unit]
-  }
-
-  object Resource {
-    implicit def monadResource[I]: Monad[Resource] = new Monad[Resource] {
-      def bind[X, Y](fa: Resource[X])(f: (X) => Resource[Y]): Resource[Y] = new Resource[Y] {
-        val me: Resource[Y] = f(fa.res)
-        def res: Y = me.res
-        def stop: Task[Unit] = for { _ <- me.stop.attempt; _ <- fa.stop.attempt } yield ()
-      }
-      def point[X](x: => X): Resource[X] = new Resource[X] {
-        def res = x
-        def stop: Task[Unit] = Task.now(())
-      }
-    }
-  }
-
-
+  case class Resource[R](res: R, stop: Task[Unit] = Task.now(()))
 
   "composition" must "work" in {
     val logBuffer = ListBuffer[String]()
-    def log(s: String): Unit = logBuffer += s
+    def log(s: String): Unit = {
+      println(s)
+      logBuffer += s
+    }
 
-    val starterA: Starter[Unit, A] = new Starter[Unit, A] {
-      def start = Task.delay {
+    val serviceA: Service[A] = Service(start = Task.delay {
         log("Starting resource A")
-        new Resource[A] {
-          def res: A = a
-          def stop: Task[Unit] = Task.delay(log("Stopping resource A"))
-        }
-      }
-    }
-    val starterB: Starter[Unit, B] = new Starter[Unit, B] {
-      def start = Task.delay {
+        Resource[A](res = a, stop = Task.delay(log("Stopping resource A")))
+      })
+
+    val serviceB: Service[B] = Service(start = Task.delay {
         log("Starting resource B")
-        new Resource[B] {
-          def res: B = b
-          def stop: Task[Unit] = Task.delay(log("Stopping resource B"))
-        }
-      }
-    }
+        Resource[B](res = b, stop = Task.delay(log("Stopping resource B")))
+      })
 
-
-    val f: (A, B) => C = (a, b) => {
+    val f: (A, B) => Task[C] = (a, b) => Task.delay {
       log(s"$a + $b = $c")
       c
     }
 
-    val env: Starter[Unit, C] =
+    val sequential =
       for {
-        a <- starterA
-        b <- starterB
-      } yield f(a, b)
+        a <- serviceA
+        b <- serviceB
+      } yield (a, b)
 
-    Starter.run(env).unsafePerformSync mustEqual c
+    sequential.run(f.tupled).unsafePerformSync mustEqual c
 
-    logBuffer must contain theSameElementsInOrderAs List (
+    val parallel = (serviceA ⊛ serviceB).tupled
+
+    logBuffer.clear()
+
+    parallel.run(f.tupled).unsafePerformSync mustEqual c
+
+    logBuffer must contain theSameElementsInOrderAs List(
       "Starting resource A",
       "Starting resource B",
       "a + b = c",
       "Stopping resource B",
       "Stopping resource A"
     )
-
-    /*
-    ListBuffer("Starting resource A", "Starting resource B", "Stopping resource B", "Stopping resource A", "a + b = c")
-    did not contain the same elements in the same (iterated) order as
-    List("Starting resource A", "Starting resource B", "a + b = c", "Stopping resource B", "Stopping resource A")
-    */
   }
 
 }
