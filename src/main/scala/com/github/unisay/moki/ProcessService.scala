@@ -11,8 +11,8 @@ trait ProcessService {
   def processService(arguments: List[String] = Nil, processLogger: ProcessLogger = defaultProcessLogger)
                     (implicit s: Strategy): TestService[Process] =
     TestService(
-      startTask = Task(arguments.run(processLogger)),
-      stopTask = process => Task(if (process.isAlive) process.destroy()))
+      start = Task(arguments.run(processLogger)),
+      stop = process => Task(if (process.isAlive) process.destroy()))
 }
 
 object ProcessService extends ProcessService

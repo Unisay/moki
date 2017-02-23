@@ -16,7 +16,9 @@ import scalaz.concurrent.{Task => ZTask}
 trait HttpTestService {
 
   def httpService(host: String = "localhost", port: Int = 0)(implicit s: Strategy): TestService[MokiClient] =
-    TestService(startTask = startHttpServer(host, port).toFs2, stopTask = _.server.shutdown.toFs2)
+    TestService(
+      start = startHttpServer(host, port).toFs2,
+      stop = _.server.shutdown.toFs2)
 
   private def startHttpServer(host: String, port: Int)(implicit s: Strategy): ZTask[MokiClient] =
     for {

@@ -13,7 +13,7 @@ object Deps {
   private val logback = Seq("ch.qos.logback" % "logback-classic" % "1.1.9")
 
   private val http4s = Seq("dsl", "blaze-server", "blaze-client")
-    .map(d => "org.http4s" %% ("http4s-" + d) % "0.15.3a")
+    .map(d => "org.http4s" %% ("http4s-" + d) % "0.15.5a")
 
   private val scalatest = Seq("org.scalatest" %% "scalatest" % "3.0.1")
 
