@@ -1,6 +1,6 @@
 package com.github.unisay.moki
 
-import fs2.Task
+import fs2.{Stream, Task}
 
 import scala.Function.const
 
@@ -9,27 +9,18 @@ trait Domain {
   class TestService[A] private(val start: Task[Resource[A]]) {
 
     def flatMap[B](f: A => TestService[B]): TestService[B] =
-      new TestService(
-        start = for {
-          resourceA <- start
-          resourceB <- f(resourceA.r).start
-          stop = for { _ <- resourceB.stop.attempt; _ <- resourceA.stop.attempt } yield ()
-        } yield Resource[B](resourceB.r, stop)
-      )
+      new TestService(start = compose(start, f.andThen(_.start)).map(b => Resource[B](b.r)))
 
-    def map[B](f: A => B): TestService[B] =
-      flatMap(a => TestService.point(f(a)))
+    private def compose[X, Y](tx: Task[Resource[X]], f: X => Task[Resource[Y]]): Task[Resource[Y]] =
+      Stream.bracket(tx)(rx => Stream.eval(f(rx.r)), _.stop).runLast.map(_.get)
+
+    def map[B](f: A => B): TestService[B] = flatMap(a => TestService.point(f(a)))
 
     def run0: Task[A] = for { resource <- start; _ <- resource.stop } yield resource.r
 
     def run[R](f: A => R): Task[R] = runT(f andThen Task.now)
 
-    def runT[R](f: A => Task[R]): Task[R] =
-      for {
-        resource <- start
-        z <- f(resource.r)
-        _ <- resource.stop.attempt
-      } yield z
+    def runT[R](f: A => Task[R]): Task[R] = compose(start, f.andThen(_.map(Resource(_)))).map(_.r)
   }
 
   object TestService {
@@ -49,5 +40,5 @@ trait Domain {
       TestService(start = Task.now(b))
   }
 
-  case class Resource[R](r: R, stop: Task[Unit])
+  case class Resource[R](r: R, stop: Task[Unit] = Task.now(()))
 }
