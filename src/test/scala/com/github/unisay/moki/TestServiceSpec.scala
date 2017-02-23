@@ -19,44 +19,40 @@ class TestServiceSpec extends FlatSpec with MustMatchers with BeforeAndAfter {
   trait Email { override def toString: String = "Email" }
   object Email extends Email
 
-  private val startLog = ListBuffer[String]()
-  private val stopLog = ListBuffer[String]()
+  private val log = ListBuffer[String]()
 
-  before {
-    startLog.clear()
-    stopLog.clear()
-  }
+  before(log.clear())
 
   def testService[S](name: String, state: S): TestService[S] = TestService(
     start = Task {
       logger.info(s"Starting $name with state = $state")
-      startLog += name
+      log += s"on $name".toLowerCase
       state
     },
     stop  = (s: S) => Task {
       logger.info(s"Stopping $name for state $s")
-      stopLog += name
+      log += s"off $name".toLowerCase
     })
 
   def testServiceThatFailsToStart(name: String) = TestService(
     start = Task {
-      startLog += name
+      log += s"on $name".toLowerCase
       logger.info(s"Exploding $name")
       if (true) sys.error("KABOOM!")
     },
     stop = (_: Any) => Task {
       logger.info(s"Stopping $name")
-      stopLog += name
+      log += s"off $name".toLowerCase
     })
 
   def testServiceThatFailsToStop(name: String) = TestService(
     start = Task {
       logger.info(s"Starting $name")
-      startLog += name
+      log += s"on $name".toLowerCase
       ()
     },
     stop = (_: Unit) => Task {
-      stopLog += name
+      log += s"off $name".toLowerCase
       logger.info(s"Exploding $name")
       sys.error("KABOOM!")
     })
@@ -69,16 +65,24 @@ class TestServiceSpec extends FlatSpec with MustMatchers with BeforeAndAfter {
     } yield (dbClient, httpClient, emailClient)
 
     env.run { case (dbClient, httpClient, emailClient) =>
+      log += "action"
+      logger.info("Started assertions...")
       Thread.sleep(3000)
-      logger.info("Doing assertions...")
       dbClient mustEqual Db
       httpClient mustEqual Http
       emailClient mustEqual Email
+      logger.info("Finished assertions...")
     }.unsafeAttemptRun().isRight mustBe true
 
-    val expectedStartLog = "Database" :: "Http" :: "Email" :: Nil
-    startLog must contain theSameElementsInOrderAs expectedStartLog
-    stopLog must contain theSameElementsInOrderAs expectedStartLog.reverse
+    log must contain theSameElementsInOrderAs List(
+      "on database",
+      "on http",
+      "on email",
+      "action",
+      "off email",
+      "off http",
+      "off database"
+    )
   }
 
   it should "tolerate failure on start" in {
@@ -86,26 +90,39 @@ class TestServiceSpec extends FlatSpec with MustMatchers with BeforeAndAfter {
       _ <- testService("Database", Db)
       _ <- testService("Http", Http)
       _ <- testService("Email", Email)
-      _ <- testServiceThatFailsToStart("BadCitizen")
+      _ <- testServiceThatFailsToStart("Bad Citizen")
     } yield succeed
 
     test.run0.unsafeAttemptRun().isLeft mustBe true
 
-    startLog must contain theSameElementsInOrderAs "Database" :: "Http" :: "Email" :: "BadCitizen" :: Nil
-    stopLog must contain theSameElementsInOrderAs "Email" :: "Http" :: "Database" :: Nil
+    log must contain theSameElementsInOrderAs List(
+      "on database",
+      "on http",
+      "on email",
+      "on bad citizen",
+      "off email",
+      "off http",
+      "off database"
+    )
   }
 
   it should "tolerate failure in test" in {
-    val test = for {
+    val env = for {
       _ <- testService("Database", Db)
       _ <- testService("Http", Http)
       _ <- testService("Email", Email)
-    } yield fail("kaboom!") : Unit
+    } yield ()
 
-    test.run0.unsafeAttemptRun().isLeft mustBe true
+    env.run(_ => fail("kaboom!")).unsafeAttemptRun().isLeft mustBe true
 
-    startLog must contain theSameElementsInOrderAs "Database" :: "Http" :: "Email" :: Nil
-    stopLog must contain theSameElementsInOrderAs "Email" :: "Http" :: "Database" :: Nil
+    log must contain theSameElementsInOrderAs List(
+      "on database",
+      "on http",
+      "on email",
+      "off email",
+      "off http",
+      "off database"
+    )
   }
 
   it should "tolerate failure on stop" in {
@@ -113,12 +130,20 @@ class TestServiceSpec extends FlatSpec with MustMatchers with BeforeAndAfter {
       _ <- testService("Database", Db)
       _ <- testService("Http", Http)
       _ <- testService("Email", Email)
-      _ <- testServiceThatFailsToStop("BadCitizen")
+      _ <- testServiceThatFailsToStop("Bad Citizen")
     } yield succeed
 
-    test.run0.unsafeAttemptRun().isLeft mustBe true
+    test.run0.unsafeAttemptRun().isRight mustBe true
 
-    startLog must contain theSameElementsInOrderAs "Database" :: "Http" :: "Email" :: "BadCitizen" :: Nil
-    stopLog must contain theSameElementsInOrderAs "BadCitizen" :: "Email" :: "Http" :: "Database" :: Nil
+    log must contain theSameElementsInOrderAs List(
+      "on database",
+      "on http",
+      "on email",
+      "on bad citizen",
+      "off bad citizen",
+      "off email",
+      "off http",
+      "off database"
+    )
   }
 }
