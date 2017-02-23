@@ -1,8 +1,8 @@
 package com.github.unisay.moki
 
-import org.scalatest.{Assertion, FlatSpec, MustMatchers}
-import org.slf4j.LoggerFactory
 import fs2.Task
+import org.scalatest.{FlatSpec, MustMatchers}
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 
@@ -22,31 +22,50 @@ class TestServiceSpec extends FlatSpec with MustMatchers {
   private val stopLog = ListBuffer[String]()
 
   def testService[S](name: String, state: S) = TestService(
-    startTask = Task.delay {
+    start = Task.delay {
       logger.info(s"Starting $name with state = $state")
       startLog += name
       state
     },
-    stopTask  = (s: S) => Task.delay {
+    stop  = (s: S) => Task.delay {
       logger.info(s"Stopping $name for state $s")
       stopLog += name
     })
 
-  private val env =
-    testService("DatabaseService", Db) :>:
-    testService("HttpTestService", Http)   :>:
-    testService("EmailService", Email) :>:
-    result[Assertion]
-
-  it should "apply" in {
-    env.runSync {
-      dbClient => httpClient => emailClient => {
-        logger.info("Doing assertions...")
-        dbClient mustEqual Db
-        httpClient mustEqual Http
-        emailClient mustEqual Email
-      }
+  it should "start and stop in proper order" in {
+    val test = for {
+      dbClient <- testService("DatabaseService", Db)
+      httpClient <- testService("HttpTestService", Http)
+      emailClient <- testService("EmailService", Email)
+    } yield {
+      logger.info("Doing assertions...")
+      dbClient mustEqual Db
+      httpClient mustEqual Http
+      emailClient mustEqual Email
     }
+
+    test.run0.unsafeRunSync()
+
+    val expectedStartLog = "DatabaseService" :: "HttpTestService" :: "EmailService" :: Nil
+    startLog must contain theSameElementsInOrderAs expectedStartLog
+    stopLog must contain theSameElementsInOrderAs expectedStartLog.reverse
+  }
+
+  it should "tolerate failure on stop" in {
+    val test = for {
+      _ <- TestService(start = Task.now(()), stop = (_: Unit) => Task.fail(new RuntimeException("KABOOM!")))
+      dbClient <- testService("DatabaseService", Db)
+      httpClient <- testService("HttpTestService", Http)
+      emailClient <- testService("EmailService", Email)
+    } yield {
+      logger.info("Doing assertions...")
+      dbClient mustEqual Db
+      httpClient mustEqual Http
+      emailClient mustEqual Email
+    }
+
+    test.run0.unsafeRunSync()
+
     val expectedStartLog = "DatabaseService" :: "HttpTestService" :: "EmailService" :: Nil
     startLog must contain theSameElementsInOrderAs expectedStartLog
     stopLog must contain theSameElementsInOrderAs expectedStartLog.reverse

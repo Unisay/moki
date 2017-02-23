@@ -3,7 +3,7 @@ package com.github.unisay.moki
 import fs2.Strategy
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time._
-import org.scalatest.{Assertion, FlatSpec, MustMatchers}
+import org.scalatest.{FlatSpec, MustMatchers}
 
 import scala.collection.mutable.ListBuffer
 import scala.sys.process.{Process, ProcessLogger}
@@ -12,9 +12,9 @@ class JvmServiceSpec extends FlatSpec with MustMatchers with Eventually {
 
   private implicit val strategy: Strategy = Strategy.fromCachedDaemonPool("io-thread-pool")
 
-  "JvmService.jvmService" must "start and stop" in (testService :>: result[Assertion]).runSync { _ =>
+  "JvmService.jvmService" must "start and stop" in testService.run { _ =>
     eventually(log must contain allOf("Test Application started with arguments: Hello World", "Working..."))
-  }
+  }.unsafeRunSync()
 
   private val log = ListBuffer[String]()
 
