@@ -5,6 +5,7 @@ import org.http4s.client.blaze.SimpleHttp1Client
 import org.http4s.dsl._
 import org.scalatest.{FlatSpec, MustMatchers}
 
+@SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
 class HttpServiceSpec extends FlatSpec with MustMatchers {
 
   private implicit val strategy: Strategy = Strategy.fromCachedDaemonPool("io-thread-pool")
@@ -16,7 +17,7 @@ class HttpServiceSpec extends FlatSpec with MustMatchers {
       http3 <- httpService()
     } yield for {
       _         <- http1.respond(_ => Ok())
-      response  <- SimpleHttp1Client().expect[String](http1.uri).toFs2
+      response  <- SimpleHttp1Client().expect[String](http1.uri)
       paths1    <- http1.requests.take(1).map(_.uri.path).runLog
       received2 <- http2.received
       received3 <- http3.received
@@ -30,7 +31,7 @@ class HttpServiceSpec extends FlatSpec with MustMatchers {
 
   "Dependent services" must "work as expected" in {
     val portProducer = TestService.point(8080)
-    val portConsumer = (i: Int) => TestService(Task(println(s"Port = $i")))
+    val portConsumer = (i: Int) => TestService[Unit](Task(println(s"Port = $i")))
 
     val assertion = for {
       port <- portProducer

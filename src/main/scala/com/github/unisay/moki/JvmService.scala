@@ -5,6 +5,7 @@ import fs2.Strategy
 
 trait JvmService {
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def jvmService(mainClass: String,
                  jvmArgs: List[String] = Nil,
                  programArgs: List[String] = Nil,

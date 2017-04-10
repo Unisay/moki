@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 
+@SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
 class TestServiceSpec extends FlatSpec with MustMatchers with BeforeAndAfter {
   private val logger = LoggerFactory.getLogger(this.getClass)
   private implicit val strategy: Strategy = Strategy.fromCachedDaemonPool("io")

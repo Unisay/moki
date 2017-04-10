@@ -4,8 +4,9 @@ import fs2.Stream.bracket
 import fs2.{Stream, Task}
 
 import scala.Function.const
-import scalaz.syntax.bind._
-import fs2.interop.scalaz._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import fs2.interop.cats._
 
 trait Domain {
 
@@ -38,6 +39,7 @@ trait Domain {
 
     def runT[R](f: A => Task[R]): Task[R] = within(start)(ra => f(ra.r), _.stop)
 
+    @SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
     private def within[X,Y,Z](start: Task[X])(use: X => Task[Y], stop: X => Task[Unit]): Task[Y] =
       bracket(start)(x => Stream.eval(use(x)), stop).runLast.map(_.head)
   }
@@ -52,12 +54,13 @@ trait Domain {
       * @tparam R resource provided by the test service
       * @return created test service
       */
+    @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
     def apply[R](start: Task[R], stop: R => Task[Unit] = const(Task.now(()))(_: R)): TestService[R] =
       new TestService(start.map(r => Res(r, stop(r))))
 
     def point[B](b: => B): TestService[B] =
-      TestService(start = Task.now(b))
+      TestService[B](start = Task.now(b))
   }
 
-  case class Res[R](r: R, stop: Task[Unit] = Task.now(()))
+  case class Res[R](r: R, stop: Task[Unit])
 }
