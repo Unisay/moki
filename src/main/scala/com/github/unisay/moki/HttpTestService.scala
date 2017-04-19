@@ -49,7 +49,7 @@ class MokiClient private[moki](val server: Server,
   private val address = server.address
   private val authority = Uri.Authority(host = RegName(address.getHostString), port = Option(address.getPort))
   val uri = Uri(scheme = Some("http".ci), authority = Some(authority))
-  def respond(service: HttpService): Task[Unit] = signal.set(service)
+  def respond(service: HttpService): Task[Unit] = signal.set(service).async(s)
   def respond(f: Request => Task[Response]): Task[Unit] = respond(HttpService lift f)
   def received: Task[Int] = queue.available.get.map(Int.MaxValue - _)
   def requests: Stream[Task, Request] = queue.dequeue

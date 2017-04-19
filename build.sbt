@@ -1,13 +1,11 @@
 
 name := "moki"
 
-version := "6.0.0"
+version := "6.0.1"
 
 organization := "com.github.unisay"
 
-scalaVersion := "2.12.1"
-
-scalaOrganization in ThisBuild := "org.typelevel"
+scalaVersion := "2.12.2"
 
 licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 
@@ -18,7 +16,6 @@ scalacOptions ++= Seq(
   "-Xlint",
   "-Xcheckinit",
   "-Ypartial-unification",
-  "-Yinduction-heuristics",
   "-Ywarn-unused-import",
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
