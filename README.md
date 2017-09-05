@@ -1,6 +1,6 @@
 Moki [![Build Status](https://travis-ci.org/Unisay/moki.svg?branch=master)](https://travis-ci.org/Unisay/moki)
 ====
-###Purely functional black-box testing toolkit for Scala
+### Purely functional black-box testing toolkit for Scala
 
 Wikipedia defines [black-box testing](https://en.wikipedia.org/wiki/Black-box_testing) as:
 
